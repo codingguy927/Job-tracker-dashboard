@@ -2,35 +2,33 @@
 
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import JobForm from "./components/JobForm";
-import JobCard from "./components/JobCard";
-// only load the chart in the browser
-const StatusChart = dynamic(() => import("./components/StatusChart"), {
+import JobForm from "@/components/JobForm"; // ✅ fixed path
+import JobCard from "@/components/JobCard"; // ✅ fixed path
+
+// ✅ fixed dynamic import path
+const StatusChart = dynamic(() => import("@/components/StatusChart"), {
   ssr: false,
 });
 
 export default function Home() {
-  // ─── App State ─────────────────────────────────────────────────────────────
-  const [jobs, setJobs] = useState([]);             // start empty, then fetch
+  const [jobs, setJobs] = useState([]);
   const [filterStatus, setFilterStatus] = useState("All");
   const [editingIndex, setEditingIndex] = useState(null);
 
-  // form fields
-  const [company, setCompany]       = useState("");
-  const [position, setPosition]     = useState("");
+  const [company, setCompany] = useState("");
+  const [position, setPosition] = useState("");
   const [dateApplied, setDateApplied] = useState("");
-  const [status, setStatus]         = useState("Applied");
+  const [status, setStatus] = useState("Applied");
 
-  // UI controls
-  const [sortOrder, setSortOrder]   = useState("Newest");
-  const [darkMode, setDarkMode]     = useState(false);
+  const [sortOrder, setSortOrder] = useState("Newest");
+  const [darkMode, setDarkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // guard against SSR/class mismatch
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  // ─── Persist darkMode ────────────────────────────────────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem("darkMode");
     if (saved) setDarkMode(JSON.parse(saved));
@@ -39,13 +37,11 @@ export default function Home() {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // ─── Fetch persisted jobs on load ────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("jobs");
     if (stored) {
       setJobs(JSON.parse(stored));
     } else {
-      // first-time: hit your API
       fetch("/api/jobs")
         .then((res) => res.json())
         .then((data) => {
@@ -56,12 +52,10 @@ export default function Home() {
     }
   }, []);
 
-  // ─── Sync jobs → localStorage whenever they change ──────────────────────────
   useEffect(() => {
     localStorage.setItem("jobs", JSON.stringify(jobs));
   }, [jobs]);
 
-  // ─── Create/update via your API ──────────────────────────────────────────────
   async function handleAddJob(newJob) {
     const res = await fetch("/api/jobs", {
       method: "POST",
@@ -70,17 +64,19 @@ export default function Home() {
     });
     const created = await res.json();
     if (editingIndex !== null) {
-      const u = [...jobs];
-      u[editingIndex] = created;
-      setJobs(u);
+      const updated = [...jobs];
+      updated[editingIndex] = created;
+      setJobs(updated);
       setEditingIndex(null);
     } else {
       setJobs((prev) => [created, ...prev]);
     }
-    setCompany(""); setPosition(""); setDateApplied(""); setStatus("Applied");
+    setCompany("");
+    setPosition("");
+    setDateApplied("");
+    setStatus("Applied");
   }
 
-  // ─── Edit & delete handlers ────────────────────────────────────────────────
   function handleEditClick(i) {
     const job = jobs[i];
     setCompany(job.company);
@@ -89,33 +85,32 @@ export default function Home() {
     setStatus(job.status);
     setEditingIndex(i);
   }
+
   function handleDeleteJob(i) {
-    const u = [...jobs];
-    u.splice(i, 1);
-    setJobs(u);
+    const updated = [...jobs];
+    updated.splice(i, 1);
+    setJobs(updated);
   }
 
-  // ─── CSV export ─────────────────────────────────────────────────────────────
   function handleExportCSV() {
     const rows = [
-      ["Company","Position","Date Applied","Status"],
+      ["Company", "Position", "Date Applied", "Status"],
       ...jobs.map((j) => [j.company, j.position, j.dateApplied, j.status]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
     a.download = "job_applications.csv";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   }
 
-  // ─── Filter → Search → Sort pipeline ───────────────────────────────────────
   const statusTypes = ["Applied", "Interviewing", "Rejected", "Offer"];
-  const statusCounts = statusTypes.reduce((acc, t) => {
-    acc[t] = jobs.filter((j) => j.status === t).length;
+  const statusCounts = statusTypes.reduce((acc, type) => {
+    acc[type] = jobs.filter((j) => j.status === type).length;
     return acc;
   }, {});
 
@@ -134,19 +129,16 @@ export default function Home() {
   }
 
   const sorted = [...filtered].sort((a, b) => {
-    const da = new Date(a.dateApplied).getTime(),
-          db = new Date(b.dateApplied).getTime();
+    const da = new Date(a.dateApplied).getTime();
+    const db = new Date(b.dateApplied).getTime();
     return sortOrder === "Newest" ? db - da : da - db;
   });
 
-  // ─── Wait for client hydrate ────────────────────────────────────────────────
   if (!mounted) return null;
 
   return (
     <main className={darkMode ? "dark" : ""}>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 dark:text-white p-8">
-
-        {/* Dark Mode Toggle */}
         <div className="flex justify-end mb-6">
           <button
             onClick={() => setDarkMode((d) => !d)}
@@ -156,12 +148,10 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Visual Status Breakdown */}
         <div className="mb-6">
           <StatusChart statusCounts={statusCounts} />
         </div>
 
-        {/* Status Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {statusTypes.map((type) => (
             <div
@@ -184,7 +174,6 @@ export default function Home() {
 
         <h1 className="text-4xl font-bold mb-6">Job Tracker Dashboard</h1>
 
-        {/* Live Search */}
         <div className="mb-4">
           <input
             type="text"
@@ -195,7 +184,6 @@ export default function Home() {
           />
         </div>
 
-        {/* Filter Buttons */}
         <div className="mb-4">
           {["All", ...statusTypes].map((st) => (
             <button
@@ -212,7 +200,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* Sort & Export */}
         <div className="mb-6">
           <button
             onClick={() => setSortOrder("Newest")}
@@ -242,7 +229,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Job Form */}
         <JobForm
           onAdd={handleAddJob}
           company={company}
@@ -256,7 +242,6 @@ export default function Home() {
           editingIndex={editingIndex}
         />
 
-        {/* Job Cards */}
         <div>
           {sorted.map((job, i) => (
             <JobCard

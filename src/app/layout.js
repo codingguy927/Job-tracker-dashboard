@@ -1,6 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import Navbar from "./components/Navbar"; // ✅ Updated path
+import "@/app/globals.css"; // use alias or keep as is if it works
+import Navbar from "@/components/Navbar"; // ✅ FIXED: now points to correct folder
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
