@@ -1,231 +1,168 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+// src/components/JobForm.jsx
+// Minimal, framework-agnostic styling; adjust classes to your design system.
+import { useEffect, useState } from "react";
 
-const inputStyle = (darkMode) => ({
-  padding: "8px",
-  marginBottom: "10px",
-  width: "100%",
-  borderRadius: "4px",
-  border: "1px solid #ccc",
-  backgroundColor: darkMode ? "#2e2e2e" : "#fff",
-  color: darkMode ? "#fff" : "#000",
-});
+/**
+ * JobForm
+ * - Works for both create and edit via the optional `editingJob` prop.
+ * - Validates required fields and surfaces simple error messages.
+ * - Normalizes comma-separated tags to an array on submit.
+ */
+export default function JobForm({ editingJob = null, onSubmit }) {
+  const [company, setCompany] = useState("");
+  const [position, setPosition] = useState("");
+  const [status, setStatus] = useState("applied");
+  const [link, setLink] = useState("");
+  const [tags, setTags] = useState(""); // stored as string in the input
+  const [notes, setNotes] = useState("");
+  const [errors, setErrors] = useState({});
 
-const labelStyle = {
-  display: "block",
-  marginBottom: "5px",
-  fontWeight: "bold",
-};
-
-const buttonStyle = {
-  padding: "8px 16px",
-  borderRadius: "4px",
-  backgroundColor: "#007bff",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-  marginRight: "10px",
-};
-
-const [errors, setErrors] = useState({});
-
-
-export default function JobForm({ onAdd, editingJob, darkMode }) {
-  const initialState = {
-    company: "",
-    position: "",
-    dateApplied: "",
-    status: "applied",
-    reminderDate: "",
-    tags: "",
-  };
-
-  const [formData, setFormData] = useState(initialState);
-
-  // When editingJob changes, populate form or reset
+  // Sync when editingJob changes (e.g., opening the form prefilled)
   useEffect(() => {
-    if (editingJob) {
-      setFormData({
-        company: editingJob.company || "",
-        position: editingJob.position || "",
-        dateApplied: editingJob.dateApplied || "",
-        status: editingJob.status || "applied",
-        reminderDate: editingJob.reminderDate || "",
-        tags: editingJob.tags ? editingJob.tags.join(", ") : "",
-      });
-    } else {
-      setFormData(initialState);
-    }
+    setCompany(editingJob?.company ?? "");
+    setPosition(editingJob?.position ?? "");
+    setStatus(editingJob?.status ?? "applied");
+    setLink(editingJob?.link ?? "");
+    // accept either array or string for tags coming in
+    const incomingTags = Array.isArray(editingJob?.tags)
+      ? editingJob?.tags.join(", ")
+      : editingJob?.tags ?? "";
+    setTags(incomingTags);
+    setNotes(editingJob?.notes ?? "");
   }, [editingJob]);
 
-  // Handle form field changes
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  // Keep this outside of conditional blocks so it always compiles and stays in scope.
+  const validate = () => {
+    const nextErrors = {};
+    if (!company.trim()) nextErrors.company = "Company is required.";
+    if (!position.trim()) nextErrors.position = "Position is required.";
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  // Reset form to initial state
-  const resetForm = () => setFormData(initialState);
+  // Parse a comma-separated tags string into a de-duped array.
+  // Why: ensures backend gets a normalized list.
+  const parseTags = (value) => {
+    if (typeof value !== "string") return [];
+    const normalized = value
+      .split(",")
+      .map((t) => t.trim()) // <-- replaces the broken `.map()` with an actual callback
+      .filter(Boolean);
+    return [...new Set(normalized)];
+  };
 
-  // Submit handler
-  const handleSubmit = useCallback(
-    (e) => {
-      e.preventDefault();
-      const { company, position, dateApplied, status, reminderDate, tags } = formData;
-      if (!company || !position || !dateApplied) return;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validate()) return;
 
-      const tagsArray = tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0);
+    const payload = {
+      id: editingJob?.id,
+      company: company.trim(),
+      position: position.trim(),
+      status,
+      link: link.trim(),
+      tags: parseTags(tags),
+      notes: notes.trim(),
+    };
 
-      onAdd({
-        company,
-        position,
-        dateApplied,
-        status,
-        reminderDate,
-        tags: tagsArray,
-      });
+    onSubmit?.(payload);
+  };
 
-      if (!editingJob)
-        
-        // place this validate Function here
-        function validate() {
-          const newErrors = {};
-          if (!company.trim()) newErrors.company = "Company is required.";
-          if (!position.trim()) newErrors.position = "Position is required.";
-          if (!dateApplied) newErrors.dateApplied = "Date applied is required.";
-          if (reminderDate && dateApplied) {
-            if (new Date(reminderDate) < new Date(dateApplied)) {
-              newErrors.reminderDate = "Reminder date cannot be before the date applied.";
-            }
-          }
-        return newErrors;
-        }
-
-        function handleSubmit(e) {
-          e.preventDefault();
-          const validationErrors = validate();
-          setErrors(validationErrors);
-          if (Object.keys(validationErrors).length > 0) return;
-
-          const tagsArray = tags 
-          .split(",")
-          .map(())
-        }
-        
-        
-        
-        
-        
-        
-        
-        
-        {
-        resetForm();
-      }
-    },
-    [formData, onAdd, editingJob]
-  );
+  // If you truly need to guard behavior when *not* editing, do it with braces.
+  // (Leaving here as a pattern to avoid the previous `if` without braces issue.)
+  // if (!editingJob) {
+  //   // e.g. set defaults or disable fields
+  // }
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
-      <div>
-        <label htmlFor="company" style={labelStyle}>
-          Company:
-        </label>
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl">
+      <div className="flex flex-col gap-1">
+        <label htmlFor="company" className="font-medium">Company</label>
         <input
           id="company"
-          name="company"
-          type="text"
-          value={formData.company}
-          onChange={handleChange}
-          placeholder="e.g. Acme Co."
-          required
-          style={inputStyle(darkMode)}
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          className="border rounded-md px-3 py-2"
+          placeholder="Acme Inc."
         />
+        {errors.company && (
+          <p className="text-red-600 text-sm" role="alert">{errors.company}</p>
+        )}
       </div>
-      <div>
-        <label htmlFor="position" style={labelStyle}>
-          Position:
-        </label>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="position" className="font-medium">Position</label>
         <input
           id="position"
-          name="position"
-          type="text"
-          value={formData.position}
-          onChange={handleChange}
-          placeholder="e.g. Frontend Engineer"
-          required
-          style={inputStyle(darkMode)}
+          value={position}
+          onChange={(e) => setPosition(e.target.value)}
+          className="border rounded-md px-3 py-2"
+          placeholder="Frontend Engineer"
         />
+        {errors.position && (
+          <p className="text-red-600 text-sm" role="alert">{errors.position}</p>
+        )}
       </div>
-      <div>
-        <label htmlFor="dateApplied" style={labelStyle}>
-          Date Applied:
-        </label>
-        <input
-          id="dateApplied"
-          name="dateApplied"
-          type="date"
-          value={formData.dateApplied}
-          onChange={handleChange}
-          required
-          style={inputStyle(darkMode)}
-        />
-      </div>
-      <div>
-        <label htmlFor="status" style={labelStyle}>
-          Status:
-        </label>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="status" className="font-medium">Status</label>
         <select
           id="status"
-          name="status"
-          value={formData.status}
-          onChange={handleChange}
-          style={inputStyle(darkMode)}
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="border rounded-md px-3 py-2"
         >
-          <option value="applied">applied</option>
-          <option value="interview">interview</option>
-          <option value="offer">offer</option>
-          <option value="rejected">rejected</option>
+          <option value="applied">Applied</option>
+          <option value="interviewing">Interviewing</option>
+          <option value="offer">Offer</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
-      <div>
-        <label htmlFor="reminderDate" style={labelStyle}>
-          Reminder Date (optional):
-        </label>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="link" className="font-medium">Job Link</label>
         <input
-          id="reminderDate"
-          name="reminderDate"
-          type="date"
-          value={formData.reminderDate}
-          onChange={handleChange}
-          style={inputStyle(darkMode)}
+          id="link"
+          type="url"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          className="border rounded-md px-3 py-2"
+          placeholder="https://..."
         />
       </div>
-      <div>
-        <label htmlFor="tags" style={labelStyle}>
-          Tags (comma separated):
-        </label>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="tags" className="font-medium">Tags (comma-separated)</label>
         <input
           id="tags"
-          name="tags"
-          type="text"
-          value={formData.tags}
-          onChange={handleChange}
-          placeholder="e.g. frontend, remote, urgent"
-          style={inputStyle(darkMode)}
+          value={tags}
+          onChange={(e) => setTags(e.target.value)}
+          className="border rounded-md px-3 py-2"
+          placeholder="remote, react, referral"
         />
       </div>
-      <button type="submit" style={buttonStyle}>
-        {editingJob ? "Update Job" : "Add Job"}
-      </button>
-      <button type="button" onClick={resetForm} style={{ ...buttonStyle, backgroundColor: "#6c757d" }}>
-        Reset
-      </button>
+
+      <div className="flex flex-col gap-1">
+        <label htmlFor="notes" className="font-medium">Notes</label>
+        <textarea
+          id="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="border rounded-md px-3 py-2 min-h-24"
+          placeholder="Anything noteworthy about this application..."
+        />
+      </div>
+
+      <div className="pt-2">
+        <button
+          type="submit"
+          className="px-4 py-2 rounded-md border font-medium hover:opacity-90"
+        >
+          {editingJob ? "Update Job" : "Add Job"}
+        </button>
+      </div>
     </form>
   );
 }
