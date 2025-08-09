@@ -1,5 +1,4 @@
-import JobList from './JobList';
-
+import JobList from "@/components/JobList"; // if this fails, use: ../../components/JobList
 
 export default function JobsPage() {
   return (
