@@ -1,4 +1,5 @@
-import JobList from './joblist';
+import JobList from './JobList';
+
 
 export default function JobsPage() {
   return (
