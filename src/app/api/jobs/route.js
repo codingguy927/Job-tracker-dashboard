@@ -1,6 +1,7 @@
 // src/app/api/jobs/route.js
 import { PrismaClient } from "@prisma/client";
 import { NextResponse } from "next/server";
+export const runtime = 'nodejs';
 
 const prisma = new PrismaClient();
 
